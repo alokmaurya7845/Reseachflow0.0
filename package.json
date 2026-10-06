@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.15.5",
   "scripts": {
     "dev": "pnpm --filter @researchflow/web dev",
-    "build": "pnpm -r build",
+    "build": "pnpm db:generate && pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm --filter @researchflow/web test",
