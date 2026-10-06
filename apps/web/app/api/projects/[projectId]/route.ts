@@ -1,0 +1,11 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { db } from '@researchflow/database';
+import { getCurrentUser } from '../../../lib/auth';
+import { idSchema, jsonError } from '../../../lib/api';
+
+const updateSchema = z.object({ title: z.string().trim().min(1).max(160).optional(), description: z.string().trim().max(2000).nullable().optional() }).refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
+async function owner(projectId: string) { const user = await getCurrentUser(); if (!user) return { error: jsonError('Authentication required.', 401) }; const parsed = idSchema.safeParse(projectId); if (!parsed.success) return { error: jsonError('Invalid project ID.', 400) }; const project = await db.researchProject.findFirst({ where: { id: projectId, userId: user.id } }); if (!project) return { error: jsonError('Project not found.', 404) }; return { user, project }; }
+export async function GET(_request: NextRequest, { params }: { params: { projectId: string } }) { try { const result = await owner(params.projectId); if (result.error) return result.error; return NextResponse.json(await db.researchProject.findUnique({ where: { id: result.project.id }, include: { _count: { select: { sources: true } } } })); } catch { return jsonError('The project service is unavailable.', 503); } }
+export async function PATCH(request: NextRequest, { params }: { params: { projectId: string } }) { const parsed = updateSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError('Invalid project data.', 400, parsed.error.flatten()); try { const result = await owner(params.projectId); if (result.error) return result.error; return NextResponse.json(await db.researchProject.update({ where: { id: result.project.id }, data: parsed.data })); } catch { return jsonError('The project could not be updated.', 503); } }
+export async function DELETE(_request: NextRequest, { params }: { params: { projectId: string } }) { try { const result = await owner(params.projectId); if (result.error) return result.error; await db.researchProject.delete({ where: { id: result.project.id } }); return new NextResponse(null, { status: 204 }); } catch { return jsonError('The project could not be deleted.', 503); } }

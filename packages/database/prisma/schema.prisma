@@ -1,0 +1,408 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountPlan {
+  FREE
+  PRO
+}
+
+enum BillingInterval {
+  NONE
+  MONTHLY
+  YEARLY
+}
+
+enum UsageMetric {
+  SOURCES_CAPTURED
+  AI_ANALYSES
+  AI_SUMMARIES
+  AI_CHAT_MESSAGES
+  REPORTS_GENERATED
+}
+
+model User {
+  id                 String           @id @default(cuid())
+  email              String           @unique
+  passwordHash       String
+  name               String?
+  avatarUrl          String?
+  plan               AccountPlan      @default(FREE)
+  billingInterval    BillingInterval  @default(NONE)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  projects           ResearchProject[]
+  usageCounters      UsageCounter[]
+  embeddings         Embedding[]
+  relationships      ResearchRelationship[]
+  contradictions     Contradiction[]
+  chatSessions       ChatSession[]
+  chatMessages       ChatMessage[]
+  chatCitations      ChatCitation[]
+  oauthAccounts      OAuthAccount[]
+  subscription       Subscription?
+  usageRecords       UsageRecord[]
+  reports            ResearchReport[]
+}
+
+model OAuthAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  email             String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@index([email])
+}
+
+model ResearchProject {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources     Source[]
+  embeddings  Embedding[]
+  relationships ResearchRelationship[]
+  contradictions Contradiction[]
+  chatSessions ChatSession[]
+  reports ResearchReport[]
+  @@index([userId, updatedAt])
+  @@index([userId, title])
+}
+
+model Source {
+  id            String          @id @default(cuid())
+  projectId     String
+  url           String
+  canonicalUrl  String
+  title         String?
+  domain        String?
+  author        String?
+  description   String?
+  faviconUrl    String?
+  publishedAt   DateTime?
+  capturedAt    DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  project       ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items         ResearchItem[]
+  analyses      AIAnalysis[]
+  embeddings    Embedding[]
+  relationships ResearchRelationship[]
+  contradictions Contradiction[]
+  chatCitations ChatCitation[]
+  @@unique([projectId, canonicalUrl])
+  @@index([projectId, capturedAt])
+  @@index([projectId, title])
+  @@index([domain])
+}
+
+model ResearchItem {
+  id        String   @id @default(cuid())
+  sourceId  String
+  type      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  source    Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  analyses  AIAnalysis[]
+  embeddings Embedding[]
+  chatCitations ChatCitation[]
+  @@index([sourceId, createdAt])
+}
+
+enum AIAnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model AIAnalysis {
+  id             String           @id @default(cuid())
+  sourceId       String
+  researchItemId String
+  inputHash      String
+  summary        String?
+  keyPoints      Json?
+  keyFindings    Json?
+  keywords       Json?
+  topics         Json?
+  contentType    String?
+  provider       String
+  model          String
+  promptVersion  String
+  status         AIAnalysisStatus @default(PENDING)
+  errorMessage   String?
+  attemptCount   Int              @default(0)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  source         Source           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  researchItem   ResearchItem     @relation(fields: [researchItemId], references: [id], onDelete: Cascade)
+  embeddings     Embedding[]
+  @@unique([researchItemId, inputHash])
+  @@index([sourceId, createdAt])
+  @@index([status, updatedAt])
+}
+
+enum EmbeddingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum IntelligenceEntityType {
+  SOURCE
+  RESEARCH_ITEM
+  SUMMARY
+  FINDING
+  CONTENT_CHUNK
+}
+
+enum RelationshipType {
+  SIMILAR
+  SUPPORTS
+  CONTRADICTS
+  PARTIALLY_CONTRADICTS
+  RELATED
+  DERIVED_FROM
+  MENTIONS_TOPIC
+}
+
+enum ContradictionClassification {
+  SUPPORTS
+  CONTRADICTS
+  PARTIALLY_CONTRADICTS
+  UNRELATED
+  INSUFFICIENT_INFORMATION
+}
+
+model Embedding {
+  id             String                @id @default(cuid())
+  userId         String
+  projectId      String
+  sourceId       String
+  researchItemId String?
+  analysisId     String?
+  entityType     IntelligenceEntityType
+  entityKey      String
+  contentHash    String
+  contentPreview String
+  provider       String
+  model          String
+  dimensions     Int
+  status         EmbeddingStatus       @default(PENDING)
+  errorMessage   String?
+  attemptCount   Int                   @default(0)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  vector         Unsupported("vector(1536)")?
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        ResearchProject      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source         Source                @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  researchItem   ResearchItem?        @relation(fields: [researchItemId], references: [id], onDelete: Cascade)
+  analysis       AIAnalysis?          @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  @@unique([entityType, entityKey, contentHash])
+  @@index([userId, projectId, status])
+  @@index([sourceId, entityType])
+}
+
+model ResearchRelationship {
+  id              String                   @id @default(cuid())
+  userId          String
+  projectId       String
+  sourceId        String
+  targetSourceId  String?
+  sourceEntity    IntelligenceEntityType
+  sourceEntityKey String
+  targetEntity    IntelligenceEntityType
+  targetEntityKey String
+  type            RelationshipType
+  confidence      Float?
+  explanation     String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         ResearchProject          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source          Source                   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  @@unique([sourceEntity, sourceEntityKey, targetEntity, targetEntityKey, type])
+  @@index([userId, projectId, type])
+}
+
+model Contradiction {
+  id             String                    @id @default(cuid())
+  userId         String
+  projectId      String
+  sourceId       String
+  leftEntityKey  String
+  rightEntityKey String
+  classification ContradictionClassification
+  confidence     Float?
+  explanation    String
+  status         String                    @default("COMPLETED")
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  user           User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        ResearchProject           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source         Source                    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  @@unique([leftEntityKey, rightEntityKey])
+  @@index([userId, projectId, classification])
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReportFormat {
+  MARKDOWN
+  PDF
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  TRIALING
+}
+
+enum UsageFeature {
+  SOURCES
+  AI_ANALYSES
+  AI_CHAT_MESSAGES
+  REPORTS
+  EXPORTS
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  plan              AccountPlan        @default(FREE)
+  billingInterval   BillingInterval    @default(NONE)
+  status            SubscriptionStatus @default(ACTIVE)
+  providerCustomerId String?
+  providerSubscriptionId String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UsageRecord {
+  id          String       @id @default(cuid())
+  userId      String
+  feature     UsageFeature
+  count       Int          @default(1)
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, feature, periodStart])
+  @@index([userId, feature, periodEnd])
+}
+
+model ResearchReport {
+  id            String       @id @default(cuid())
+  userId        String
+  projectId     String
+  title         String
+  status        ReportStatus @default(PENDING)
+  content       String?
+  format        ReportFormat @default(MARKDOWN)
+  provider      String?
+  model         String?
+  errorMessage  String?
+  generatedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([userId, projectId, updatedAt])
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model ChatSession {
+  id        String           @id @default(cuid())
+  userId    String
+  projectId String?
+  title     String           @default("New research chat")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   ResearchProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+  @@index([userId, updatedAt])
+  @@index([userId, projectId, updatedAt])
+}
+
+model ChatMessage {
+  id             String        @id @default(cuid())
+  userId         String
+  sessionId      String
+  role           ChatRole
+  content        String
+  provider       String?
+  model          String?
+  promptVersion  String?
+  inputTokens    Int?
+  outputTokens   Int?
+  estimatedCost  Float?
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session        ChatSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  citations      ChatCitation[]
+  @@index([userId, sessionId, createdAt])
+}
+
+model ChatCitation {
+  id              String        @id @default(cuid())
+  userId          String
+  messageId       String
+  sourceId        String
+  researchItemId  String?
+  findingId       String?
+  relevanceScore  Float
+  citationOrder   Int
+  reason          String?
+  createdAt       DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message         ChatMessage   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  source          Source        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  researchItem    ResearchItem? @relation(fields: [researchItemId], references: [id], onDelete: Cascade)
+  @@unique([messageId, citationOrder])
+  @@index([userId, sourceId])
+}
+
+model UsageCounter {
+  id        String      @id @default(cuid())
+  userId    String
+  metric    UsageMetric
+  count     Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, metric])
+  @@index([userId])
+}

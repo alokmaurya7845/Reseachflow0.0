@@ -1,0 +1,19 @@
+{
+  "name": "researchflow",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.5",
+  "scripts": {
+    "dev": "pnpm --filter @researchflow/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm --filter @researchflow/web test",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @researchflow/database prisma:generate",
+    "db:migrate": "pnpm --filter @researchflow/database prisma:migrate",
+    "db:deploy": "pnpm --filter @researchflow/database prisma migrate deploy",
+    "db:studio": "pnpm --filter @researchflow/database prisma:studio"
+  },
+  "devDependencies": { "prettier": "^3.4.2", "eslint": "^9.17.0", "typescript-eslint": "^8.18.0" }
+}

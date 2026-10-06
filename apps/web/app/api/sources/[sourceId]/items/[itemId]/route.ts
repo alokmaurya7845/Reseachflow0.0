@@ -1,0 +1,7 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@researchflow/database';
+import { getCurrentUser } from '../../../../../lib/auth';
+import { idSchema, jsonError } from '../../../../../lib/api';
+async function ownedItem(sourceId: string, itemId: string) { const user = await getCurrentUser(); if (!user) return { error: jsonError('Authentication required.', 401) }; if (!idSchema.safeParse(sourceId).success || !idSchema.safeParse(itemId).success) return { error: jsonError('Invalid research-item ID.', 400) }; const item = await db.researchItem.findFirst({ where: { id: itemId, sourceId, source: { project: { userId: user.id } } } }); if (!item) return { error: jsonError('Research item not found.', 404) }; return { item }; }
+export async function GET(_request: NextRequest, { params }: { params: { sourceId: string; itemId: string } }) { try { const result = await ownedItem(params.sourceId, params.itemId); if (result.error) return result.error; return NextResponse.json(result.item); } catch { return jsonError('The research-item service is unavailable.', 503); } }
+export async function DELETE(_request: NextRequest, { params }: { params: { sourceId: string; itemId: string } }) { try { const result = await ownedItem(params.sourceId, params.itemId); if (result.error) return result.error; await db.researchItem.delete({ where: { id: result.item.id } }); return new NextResponse(null, { status: 204 }); } catch { return jsonError('The research item could not be deleted.', 503); } }

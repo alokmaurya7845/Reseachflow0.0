@@ -1,0 +1,3 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { googleClient, googleConfig, safeReturnPath, startGoogleState } from '../../../lib/google-oauth';
+export async function GET(request: NextRequest) { const config = googleConfig(); const returnPath = safeReturnPath(request.nextUrl.searchParams.get('returnTo')); if (!config) return NextResponse.redirect(new URL(`/login?error=google_not_configured`, request.url)); const state = startGoogleState(returnPath); const client = googleClient(config); const url = client.generateAuthUrl({ access_type: 'offline', prompt: 'select_account', state, scope: ['openid', 'email', 'profile'], include_granted_scopes: true }); return NextResponse.redirect(url); }

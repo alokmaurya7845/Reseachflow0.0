@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "ResearchFlow",
+  "version": "0.2.0",
+  "description": "Capture reliable web research into ResearchFlow.",
+  "action": { "default_popup": "index.html", "default_title": "ResearchFlow" },
+  "permissions": ["activeTab", "storage", "contextMenus"],
+  "host_permissions": ["<all_urls>", "http://localhost:3000/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }]
+}

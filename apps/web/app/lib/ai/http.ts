@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';
+import { AIServiceError } from './types';
+export function aiErrorResponse(error: unknown) { if (error instanceof AIServiceError) { const status = error.code === 'NOT_CONFIGURED' ? 503 : error.code === 'EMPTY_CONTENT' || error.code === 'CONTENT_TOO_LARGE' ? 400 : error.code === 'RATE_LIMIT' ? 429 : error.code === 'TIMEOUT' || error.code === 'PROVIDER_UNAVAILABLE' ? 502 : 502; return NextResponse.json({ error: error.message, code: error.code }, { status }); } return NextResponse.json({ error: 'AI processing could not be completed.' }, { status: 502 }); }
