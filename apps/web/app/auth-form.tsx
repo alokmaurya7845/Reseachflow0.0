@@ -1,5 +1,155 @@
 'use client';
+
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-const oauthErrors: Record<string, string> = { google_not_configured: 'Google Sign-In is not configured on this server yet.', google_state_invalid: 'Google Sign-In expired or failed its security check. Please try again.', google_email_unverified: 'Google must return a verified email address to create or link an account.', google_callback_failed: 'Google Sign-In could not be completed. Please try again.' };
-export function AuthForm({ mode, oauthError = '' }: { mode: 'login' | 'register'; oauthError?: string }) { const router = useRouter(); const [email, setEmail] = useState(''); const [name, setName] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(oauthErrors[oauthError] ?? ''); const [loading, setLoading] = useState(false); const submit = async (event: FormEvent) => { event.preventDefault(); setLoading(true); setError(''); const response = await fetch(`/api/auth/${mode === 'login' ? 'login' : 'register'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ email, password, ...(mode === 'register' ? { name } : {}) }) }); const body = await response.json().catch(() => ({})); setLoading(false); if (!response.ok) { setError(body.error ?? 'Unable to authenticate.'); return; } router.push('/'); router.refresh(); }; return <main className="grid min-h-screen place-items-center bg-slate-50 p-6"><form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"><div className="mb-8 flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 font-bold text-white">R</div><div><div className="font-semibold">ResearchFlow</div><div className="text-xs text-slate-400">Private research workspace</div></div></div><h1 className="text-2xl font-semibold">{mode === 'login' ? 'Sign in' : 'Create your account'}</h1><p className="mt-2 text-sm text-slate-500">{mode === 'login' ? 'Continue collecting research securely.' : 'Start with a free research workspace.'}</p><a href="/api/auth/google?returnTo=/" className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"><span className="text-base font-bold text-[#4285F4]">G</span>Continue with Google</a><div className="my-5 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with email<span className="h-px flex-1 bg-slate-200" /></div>{mode === 'register' && <label className="mt-2 block text-sm font-medium">Name<input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5" maxLength={120} /></label>}<label className="mt-6 block text-sm font-medium">Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5" maxLength={320} /></label><label className="mt-4 block text-sm font-medium">Password<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5" minLength={mode === 'register' ? 12 : 1} maxLength={128} /></label>{error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}<button disabled={loading} className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{loading ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}</button><a className="mt-5 block text-center text-sm text-indigo-600" href={mode === 'login' ? '/register' : '/login'}>{mode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in'}</a></form></main> }
+
+const oauthErrors: Record<string, string> = {
+  google_not_configured: 'Google Sign-In is not configured on this server yet.',
+  google_state_invalid:
+    'Google Sign-In expired or failed its security check. Please try again.',
+  google_email_unverified:
+    'Google must return a verified email address to create or link an account.',
+  google_callback_failed:
+    'Google Sign-In could not be completed. Please try again.',
+};
+
+export function AuthForm({
+  mode,
+  oauthError = '',
+}: {
+  mode: 'login' | 'register';
+  oauthError?: string;
+}) {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(oauthErrors[oauthError] ?? '');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const response = await fetch(
+      `/api/auth/${mode === 'login' ? 'login' : 'register'}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email,
+          password,
+          ...(mode === 'register' ? { name } : {}),
+        }),
+      },
+    );
+
+    const body = await response.json().catch(() => ({}));
+    setLoading(false);
+
+    if (!response.ok) {
+      setError(body.error ?? 'Unable to authenticate.');
+      return;
+    }
+
+    router.push('/');
+    router.refresh();
+  };
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-slate-50 p-6">
+      <form
+        onSubmit={submit}
+        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"
+      >
+        <div className="mb-8 flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 font-bold text-white">
+            R
+          </div>
+
+          <div>
+            <div className="font-semibold">ResearchFlow</div>
+            <div className="text-xs text-slate-400">
+              Private research workspace
+            </div>
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-semibold">
+          {mode === 'login' ? 'Sign in' : 'Create your account'}
+        </h1>
+
+        <p className="mt-2 text-sm text-slate-500">
+          {mode === 'login'
+            ? 'Continue collecting research securely.'
+            : 'Start with a free research workspace.'}
+        </p>
+
+        {mode === 'register' && (
+          <label className="mt-6 block text-sm font-medium">
+            Name
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5"
+              maxLength={120}
+            />
+          </label>
+        )}
+
+        <label className="mt-6 block text-sm font-medium">
+          Email
+          <input
+            required
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5"
+            maxLength={320}
+          />
+        </label>
+
+        <label className="mt-4 block text-sm font-medium">
+          Password
+          <input
+            required
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5"
+            minLength={mode === 'register' ? 12 : 1}
+            maxLength={128}
+          />
+        </label>
+
+        {error && (
+          <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {error}
+          </p>
+        )}
+
+        <button
+          disabled={loading}
+          className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {loading
+            ? 'Working…'
+            : mode === 'login'
+              ? 'Sign in'
+              : 'Create account'}
+        </button>
+
+        <a
+          className="mt-5 block text-center text-sm text-indigo-600"
+          href={mode === 'login' ? '/register' : '/login'}
+        >
+          {mode === 'login'
+            ? 'Need an account? Register'
+            : 'Already have an account? Sign in'}
+        </a>
+      </form>
+    </main>
+  );
+}
