@@ -15,5 +15,13 @@
     "db:deploy": "pnpm --filter @researchflow/database prisma migrate deploy",
     "db:studio": "pnpm --filter @researchflow/database prisma:studio"
   },
-  "devDependencies": { "prettier": "^3.4.2", "eslint": "^9.17.0", "typescript-eslint": "^8.18.0" }
+  "devDependencies": {
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "prisma": "^5.22.0",
+    "typescript-eslint": "^8.18.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  }
 }

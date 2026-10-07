@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@prisma/client':
+        specifier: ^5.22.0
+        version: 5.22.0(prisma@5.22.0)
     devDependencies:
       eslint:
         specifier: ^9.17.0
@@ -14,6 +18,9 @@ importers:
       prettier:
         specifier: ^3.4.2
         version: 3.9.9
+      prisma:
+        specifier: ^5.22.0
+        version: 5.22.0
       typescript-eslint:
         specifier: ^8.18.0
         version: 8.71.0(eslint@9.39.5(jiti@1.21.7))(typescript@5.9.3)
