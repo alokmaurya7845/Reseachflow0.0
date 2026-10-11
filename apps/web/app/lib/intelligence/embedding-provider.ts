@@ -29,12 +29,18 @@ export function embeddingProvider(): EmbeddingProvider {
         if (response.status === 429) throw new AIServiceError('RATE_LIMIT', 'The embedding provider rate limit was reached.', true);
         throw new AIServiceError('PROVIDER_UNAVAILABLE', 'The embedding provider returned an error.', response.status >= 500);
       }
-      const payload = await response.json() as { embedding?: { values?: number[] } };
+      const payload = await response.json() as { embedding?: { values?: unknown } };
       const vector = payload.embedding?.values;
-      if (!vector || vector.length !== DIMENSIONS || vector.some((value) => !Number.isFinite(value))) {
-        throw new AIServiceError('INVALID_RESPONSE', 'The embedding provider returned an invalid vector.');
+      if (!Array.isArray(vector) || vector.length === 0) {
+        throw new AIServiceError('INVALID_RESPONSE', 'Gemini returned no embedding values.');
       }
-      return vector;
+      if (vector.length !== DIMENSIONS) {
+        throw new AIServiceError('INVALID_RESPONSE', `Gemini returned ${vector.length} embedding dimensions; expected ${DIMENSIONS}.`);
+      }
+      if (vector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+        throw new AIServiceError('INVALID_RESPONSE', 'Gemini returned embedding values that are not all finite numbers.');
+      }
+      return vector as number[];
     },
   };
 }

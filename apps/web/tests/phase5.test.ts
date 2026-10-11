@@ -21,10 +21,24 @@ describe('Phase 5 intelligence safeguards', () => {
       expect(JSON.parse(String(init?.body))).toEqual({ model: 'models/gemini-embedding-001', content: { parts: [{ text: 'sample text' }] }, embedContentConfig: { outputDimensionality: 1536 } });
     } finally { fetchMock.mockRestore(); }
   });
-  it('rejects a wrong-sized Gemini vector', async () => {
+  it('rejects a wrong-sized Gemini vector with the received dimension count', async () => {
     process.env.GEMINI_API_KEY = 'test-only';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ embedding: { values: [1, 2] } }), { status: 200 }));
-    try { await expect(embeddingProvider().generateEmbedding('sample text')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' }); }
+    try { await expect(embeddingProvider().generateEmbedding('sample text')).rejects.toMatchObject({ code: 'INVALID_RESPONSE', message: 'Gemini returned 2 embedding dimensions; expected 1536.' }); }
+    finally { fetchMock.mockRestore(); }
+  });
+  it('rejects missing Gemini embedding values', async () => {
+    process.env.GEMINI_API_KEY = 'test-only';
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ embedding: {} }), { status: 200 }));
+    try { await expect(embeddingProvider().generateEmbedding('sample text')).rejects.toMatchObject({ code: 'INVALID_RESPONSE', message: 'Gemini returned no embedding values.' }); }
+    finally { fetchMock.mockRestore(); }
+  });
+  it('rejects non-finite or non-numeric Gemini embedding values', async () => {
+    process.env.GEMINI_API_KEY = 'test-only';
+    const values = Array.from({ length: 1536 }, () => 0.25);
+    values[1535] = Number.NaN;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ embedding: { values } }), { status: 200 }));
+    try { await expect(embeddingProvider().generateEmbedding('sample text')).rejects.toMatchObject({ code: 'INVALID_RESPONSE', message: 'Gemini returned embedding values that are not all finite numbers.' }); }
     finally { fetchMock.mockRestore(); }
   });
   it('maps Gemini authentication, rate limit, and provider failures safely', async () => {
