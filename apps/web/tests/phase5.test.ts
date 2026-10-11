@@ -21,6 +21,25 @@ describe('Phase 5 intelligence safeguards', () => {
       expect(JSON.parse(String(init?.body))).toEqual({ model: 'models/gemini-embedding-001', content: { parts: [{ text: 'sample text' }] }, embedContentConfig: { outputDimensionality: 1536 } });
     } finally { fetchMock.mockRestore(); }
   });
+  it('retries a default-sized response with the documented top-level dimension field', async () => {
+    process.env.GEMINI_API_KEY = 'test-only';
+    const defaultVector = Array.from({ length: 3072 }, () => 0.5);
+    const expectedVector = Array.from({ length: 1536 }, () => 0.25);
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ embedding: { values: defaultVector } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ embedding: { values: expectedVector } }), { status: 200 }));
+    try {
+      const vector = await embeddingProvider().generateEmbedding('sample text');
+      expect(vector).toHaveLength(1536);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+      const retryBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+      expect(firstBody.embedContentConfig).toEqual({ outputDimensionality: 1536 });
+      expect(firstBody.outputDimensionality).toBeUndefined();
+      expect(retryBody.outputDimensionality).toBe(1536);
+      expect(retryBody.embedContentConfig).toBeUndefined();
+    } finally { fetchMock.mockRestore(); }
+  });
   it('rejects a wrong-sized Gemini vector with the received dimension count', async () => {
     process.env.GEMINI_API_KEY = 'test-only';
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ embedding: { values: [1, 2] } }), { status: 200 }));
